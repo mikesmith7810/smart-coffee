@@ -33,6 +33,7 @@ func GetCoffee(c *gin.Context) {
   - Validate input parameters early; return `400 Bad Request` if validation fails
   - Return structured JSON responses with `c.JSON(statusCode, payload)`
   - Use appropriate HTTP status codes (200, 201, 400, 404, 500)
+  - Record business metrics for important request outcomes when observability is in scope
 
 - **Error handling**:
   - Define errors in a dedicated `errors.go` or use domain-scoped errors
@@ -71,8 +72,15 @@ smart-coffee/app/
 ## Dependencies
 
 - **Gin**: Web framework
+- **Prometheus client**: `github.com/prometheus/client_golang` for metrics exposure
 - Standard library: `net/http`, `encoding/json`, `log`
-- No external dependencies beyond Gin (prefer stdlib when possible)
+- Prefer standard library where practical, but use established libraries for HTTP and observability concerns
+
+## Observability
+
+- Expose Prometheus metrics on `/metrics` using `prometheus/client_golang`
+- Prefer a dedicated `metrics/` package for counters, histograms, and middleware
+- Instrument request count, latency, and key business outcomes for important endpoints
 
 ## Testing & Validation
 
@@ -84,6 +92,7 @@ smart-coffee/app/
 
 **Keep copilot-instructions.md and README.md up to date with all significant changes:**
 - New endpoints added? Update README API section
+- Observability added or changed? Update metrics, logs, and tracing sections in README and instructions
 - Architecture changes? Update both README and instructions
 - New dependencies or tools? Update prerequisites
 - Breaking changes to request/response formats? Document immediately

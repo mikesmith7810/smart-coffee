@@ -53,7 +53,8 @@ go run .
 The server will start on `http://localhost:8080` and output:
 ```
 [GIN-debug] Loaded HTML Templates (0): 
-[GIN-debug] POST   /coffee/               --> smart-coffee/handlers.GetCoffee (3 handlers)
+[GIN-debug] GET    /coffee/               --> smart-coffee/handlers.GetCoffee (3 handlers)
+[GIN-debug] GET    /metrics               --> github.com/prometheus/client_golang/prometheus/promhttp.Handler (3 handlers)
 [GIN-debug] Listening and serving HTTP on :8080
 ```
 
@@ -93,6 +94,22 @@ go build -o server .
 **Example:**
 ```bash
 curl http://localhost:8080/coffee/?id=123
+```
+
+### Prometheus Metrics
+
+**Endpoint:** `GET /metrics`
+
+Exposes Prometheus-format application metrics for local observability, scraping, and Grafana demos using `github.com/prometheus/client_golang`.
+
+Current metrics include:
+- `smart_coffee_http_requests_total`
+- `smart_coffee_http_request_duration_seconds`
+- `smart_coffee_coffee_requests_total`
+
+**Example:**
+```bash
+curl http://localhost:8080/metrics
 ```
 
 ## Architecture
@@ -186,9 +203,11 @@ checks...................: 100% ✓ 1200   ✗ 0
 
 Grafana can ingest k6 metrics to track API performance trends over time.
 
+## Grafana Integration
+
 This service is instrumented to work with Grafana for local monitoring. Common integration points:
 
-- **Metrics**: Expose Prometheus metrics (future: add instrumentation)
+- **Metrics**: Prometheus metrics are available at `GET /metrics` via `prometheus/client_golang`
 - **Logs**: Structured logging via Gin middleware
 - **Traces**: Ready for OpenTelemetry integration
 
@@ -197,7 +216,6 @@ See `/grafana` folder (future) for Grafana dashboard configurations.
 ## Future Enhancements
 
 - [ ] Database integration (PostgreSQL/MongoDB)
-- [ ] Prometheus metrics endpoint
 - [ ] OpenTelemetry tracing
 - [ ] Authentication & authorization
 - [ ] Unit and integration tests

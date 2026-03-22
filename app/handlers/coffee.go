@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 	"smart-coffee/domain"
+	"smart-coffee/metrics"
 
 	"github.com/gin-gonic/gin"
 )
@@ -10,16 +11,19 @@ import (
 func GetCoffee(c *gin.Context) {
 	id := c.Query("id")
 	if id == "" {
-        c.JSON(http.StatusBadRequest, gin.H{
-            "error": "id parameter is required",
-        })
-        return
-    }
+		metrics.RecordCoffeeRequest("bad_request")
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "id parameter is required",
+		})
+		return
+	}
 
 	resp := domain.Coffee{
-        Id: "1",
-		Name: "Latte",
+		Id:       "1",
+		Name:     "Latte",
 		Calories: 150,
-    }
-    c.JSON(http.StatusOK, resp)
+	}
+
+	metrics.RecordCoffeeRequest("success")
+	c.JSON(http.StatusOK, resp)
 }
