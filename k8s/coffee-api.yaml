@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coffee-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: coffee-api
+  template:
+    metadata:
+      labels:
+        app: coffee-api
+    spec:
+      containers:
+        - name: coffee-api
+          image: smart-coffee:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: MYSQL_HOST
+              value: mysql
+            - name: MYSQL_PORT
+              value: "3306"
+            - name: MYSQL_DATABASE
+              value: coffee_db
+            - name: MYSQL_USER
+              value: root
+            - name: MYSQL_PASSWORD
+              value: coffee-password
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: coffee-api
+spec:
+  type: ClusterIP
+  selector:
+    app: coffee-api
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080

@@ -73,13 +73,23 @@ smart-coffee/app/
 
 - **Gin**: Web framework
 - **Prometheus client**: `github.com/prometheus/client_golang` for metrics exposure
-- Standard library: `net/http`, `encoding/json`, `log`
-- Prefer standard library where practical, but use established libraries for HTTP and observability concerns
+- **MySQL driver**: `github.com/go-sql-driver/mysql` for database connectivity
+- Standard library: `net/http`, `encoding/json`, `log`, `database/sql`
+- Prefer standard library where practical, but use established libraries for HTTP, database, and observability concerns
 
 ## Observability
 
 - Expose Prometheus metrics on `/metrics` using `prometheus/client_golang`
 - Prefer a dedicated `metrics/` package for counters, histograms, and middleware
+
+## Database Patterns
+
+- Use `database/sql` with `github.com/go-sql-driver/mysql` for MySQL connectivity
+- Connection strings must work both locally (Docker `localhost:3306`) and in Kubernetes (service DNS `mysql:3306`)
+- Always call `db.Ping()` after opening to verify connectivity
+- Configure connection pool limits (`SetMaxOpenConns`, `SetMaxIdleConns`) for production readiness
+- Close database connections gracefully with `defer db.Close()` in main
+- For data access, prefer a `services/` or `repository/` layer to isolate SQL from handlers
 - Instrument request count, latency, and key business outcomes for important endpoints
 
 ## Testing & Validation
