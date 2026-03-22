@@ -1,224 +1,99 @@
 # Smart Coffee
 
-A Go-based HTTP server implementing a coffee ordering process. This project demonstrates building an enterprise-grade API with structured layering, domain-driven design, and is designed to run locally for **Grafana observability demonstrations**.
+Smart Coffee is a Go API for a coffee ordering flow, built to run locally and in k3d Kubernetes with basic observability via Prometheus metrics.
 
-## Overview
+## APIs
 
-**Smart Coffee** is a lightweight REST API service that handles coffee ordering operations. It's built as a local playground to showcase how to instrument and monitor Go services with Grafana, including metrics, logs, and traces.
+- `GET /coffee/?id=<id>`
+  - Returns a coffee response by id
+  - Returns `400` if `id` is missing
+- `GET /metrics`
+  - Prometheus metrics endpoint (`prometheus/client_golang`)
 
-**Use cases:**
-- Local development and testing of coffee ordering workflows
-- Grafana integration testing (metrics collection, dashboarding, alerting)
-- Go HTTP API architecture reference (layered structure, error handling, validation)
-
-## Project Structure
-
-```
-smart-coffee/
-├── app/                    # Go service
-│   ├── main.go            # Entry point, server startup
-│   ├── go.mod / go.sum    # Go modules
-│   ├── domain/            # Business entities
-│   │   └── coffee.go      # Coffee model
-│   ├── handlers/          # HTTP request handlers
-│   │   └── coffee.go      # Coffee endpoints
-│   └── router/            # Route registration
-│       └── router.go      # Gin router setup
-├── copilot-instructions.md # Coding guidelines
-└── README.md              # This file
-```
-
-## Getting Started
-
-### Prerequisites
-
-- **Go 1.25.6+** ([Install Go](https://golang.org/dl/))
-- **Gin** (automatically installed via `go mod`)
-
-### Installation
+## Run Locally (Go)
 
 ```bash
-cd smart-coffee/app
+cd app
 go mod download
-```
-
-### Starting the Server
-
-From the `app/` directory:
-
-```bash
 go run .
 ```
 
-The server will start on `http://localhost:8080` and output:
-```
-[GIN-debug] Loaded HTML Templates (0): 
-[GIN-debug] GET    /coffee/               --> smart-coffee/handlers.GetCoffee (3 handlers)
-[GIN-debug] GET    /metrics               --> github.com/prometheus/client_golang/prometheus/promhttp.Handler (3 handlers)
-[GIN-debug] Listening and serving HTTP on :8080
-```
+API will be available at `http://localhost:8080`.
 
-### Building a Binary
+## Run in Local Kubernetes (k3d)
+
+### 1) Create cluster
 
 ```bash
-cd smart-coffee/app
-go build -o server .
-./server
+brew install k3d
+k3d cluster create coffee-cluster \
+  -p "8080:80@loadbalancer" \
+  -p "3000:3000@loadbalancer" \
+  --agents 2
 ```
 
-## API Endpoints
+### 2) Deploy MySQL
 
-### Get Coffee
-
-**Endpoint:** `GET /coffee/`
-
-**Query Parameters:**
-- `id` (required): Unique identifier for the coffee order
-
-**Response (200 OK):**
-```json
-{
-  "id": "1",
-  "name": "Latte",
-  "calories": 150
-}
-```
-
-**Error (400 Bad Request):**
-```json
-{
-  "error": "Key: 'CoffeeQuery.Id' Error:Field validation for 'Id' failed on the 'required' tag"
-}
-```
-
-**Example:**
 ```bash
-curl http://localhost:8080/coffee/?id=123
+kubectl apply -f k8s/mysql.yaml
 ```
 
-### Prometheus Metrics
+### 3) Build and import Coffee API image
 
-**Endpoint:** `GET /metrics`
-
-Exposes Prometheus-format application metrics for local observability, scraping, and Grafana demos using `github.com/prometheus/client_golang`.
-
-Current metrics include:
-- `smart_coffee_http_requests_total`
-- `smart_coffee_http_request_duration_seconds`
-- `smart_coffee_coffee_requests_total`
-
-**Example:**
 ```bash
-curl http://localhost:8080/metrics
+docker build -t smart-coffee:latest ./app
+k3d image import smart-coffee:latest -c coffee-cluster
 ```
 
-## Architecture
+### 4) Deploy Coffee API
 
-### Layered Design
-
-- **`domain/`**: Pure business models (structs, validation logic) — framework-agnostic
-- **`handlers/`**: HTTP request/response layer — Gin-specific
-- **`router/`**: Route registration and middleware setup
-- **`services/`**: (Future) Business logic and data persistence
-
-### Key Patterns
-
-- **Request validation**: Early validation with `binding:"required"` tags
-- **Error handling**: Consistent JSON error responses with HTTP status codes
-- **Middleware**: Gin's built-in Logger and Recovery middleware
-
-## Development
-
-### Code Style
-
-All code is formatted with `gofmt`:
 ```bash
-gofmt -w ./...
+kubectl apply -f k8s/coffee-api.yaml
 ```
 
-### Linting
+### 5) Port-forward API
 
-Run `golangci-lint` for code quality checks:
 ```bash
-golangci-lint run ./...
+kubectl port-forward svc/coffee-api 8080:80
 ```
 
-### Testing
+### 6) Verify
 
-Run tests:
 ```bash
-go test ./...
+curl "http://localhost:8080/coffee/?id=123"
+curl "http://localhost:8080/metrics"
 ```
 
-## Load Testing with k6
+## Observability with Helm (Prometheus + Grafana)
 
-This project includes **k6 load testing** to validate API performance and behavior under load. k6 tests are written in JavaScript and simulate realistic user traffic patterns.
-
-### Prerequisites
-
-- **k6** ([Install k6](https://k6.io/docs/getting-started/installation/))
-
-### Running Load Tests
-
-Start the server:
 ```bash
-cd smart-coffee/app
-go run .
+# Add and update Helm repo
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+
+# Install kube-prometheus-stack (Prometheus, Grafana, Alertmanager)
+helm upgrade --install obs prometheus-community/kube-prometheus-stack \
+  -n monitoring --create-namespace
 ```
 
-In another terminal, run k6 tests:
+Check pods:
+
 ```bash
-k6 run load-tests/coffee.js
+kubectl get pods -n monitoring
 ```
 
-### Load Test Scenarios
+Grafana port-forward:
 
-- **Smoke test**: Single request to verify endpoint health
-- **Load test**: Sustained traffic (e.g., 50 virtual users for 30 seconds)
-- **Stress test**: Gradually increase load to find breaking point
-- **Spike test**: Sudden traffic spikes to test resilience
-
-### Example Output
-
-```
-          /\      |‾‾| /‾‾/‾‾ / /‾‾/
-         /  \     |  |/  /   / /  / 
-        /    \    |     (   /  /
-       /______\   |  |\  \ /  ‾‾\
-       , |___| |,__ /  \ / \ |_  _/|
-       `._    /._,' \    |   |___| v0.50.0
-
-     execution: local
-     script: load-tests/coffee.js
-     output: -
-
-scenarios: (100.00%) 1 scenario, 50 max VUs, 1m0s max duration (hold for 30s)
-
-GET /coffee/?id=123:
-  ✓ status is 200
-  ✓ response time < 200ms
-
-checks...................: 100% ✓ 1200   ✗ 0
+```bash
+kubectl port-forward svc/obs-grafana -n monitoring 3000:80
 ```
 
-Grafana can ingest k6 metrics to track API performance trends over time.
+## Optional: Combined port-forward (API + Grafana)
 
-## Grafana Integration
+```bash
+kubectl port-forward svc/coffee-api 8080:80 & kubectl port-forward svc/obs-grafana -n monitoring 3000:80 & wait
+```
 
-This service is instrumented to work with Grafana for local monitoring. Common integration points:
+## TODO
 
-- **Metrics**: Prometheus metrics are available at `GET /metrics` via `prometheus/client_golang`
-- **Logs**: Structured logging via Gin middleware
-- **Traces**: Ready for OpenTelemetry integration
-
-See `/grafana` folder (future) for Grafana dashboard configurations.
-
-## Future Enhancements
-
-- [ ] Database integration (PostgreSQL/MongoDB)
-- [ ] OpenTelemetry tracing
-- [ ] Authentication & authorization
-- [ ] Unit and integration tests
-- [ ] Docker support
-- [ ] Grafana dashboard templates
-- [ ] k6 load test scenarios (smoke, load, stress, spike tests)
+- [ ] Add k6 load tests
