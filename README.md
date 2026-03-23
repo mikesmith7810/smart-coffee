@@ -2,6 +2,8 @@
 
 Smart Coffee is a Go API for a coffee ordering flow, built to run locally and in k3d Kubernetes with basic observability via Prometheus metrics.
 
+Database settings now come from a config file, with secret values overridable via environment variables.
+
 ## APIs
 
 - `GET /coffee/?id=<id>`
@@ -15,6 +17,8 @@ Smart Coffee is a Go API for a coffee ordering flow, built to run locally and in
 ```bash
 cd app
 go mod download
+cp config.local.yaml config.yaml
+# update config.yaml with your local database settings
 go run .
 ```
 
@@ -35,6 +39,9 @@ k3d cluster create coffee-cluster \
 ### 2) Deploy MySQL
 
 ```bash
+kubectl create secret generic mysql-secret \
+  --from-literal=MYSQL_ROOT_PASSWORD='coffee-password'
+
 kubectl apply -f k8s/mysql.yaml
 ```
 
@@ -48,8 +55,13 @@ k3d image import smart-coffee:latest -c coffee-cluster
 ### 4) Deploy Coffee API
 
 ```bash
+kubectl create secret generic coffee-api-secret \
+  --from-literal=MYSQL_PASSWORD='coffee-password'
+
 kubectl apply -f k8s/coffee-api.yaml
 ```
+
+The Coffee API manifest uses a `ConfigMap` plus `coffee-api-secret` for database password.
 
 ### 5) Port-forward API
 
@@ -87,6 +99,37 @@ Grafana port-forward:
 ```bash
 kubectl port-forward svc/obs-grafana -n monitoring 3000:80
 ```
+
+## Why Helm Helps
+
+Helm is a good fit here because it lets you template environment-specific configuration cleanly.
+
+- Non-secret settings can go into Helm values and render into a `ConfigMap`
+- Passwords and other secrets can be injected into Kubernetes `Secret` resources
+- Different environments can use different values without changing application code or raw YAML manifests
+
+## Helm Deploy (recommended)
+
+For local k3d:
+
+```bash
+cp helm/smart-coffee/values.local.example.yaml helm/smart-coffee/values.local.yaml
+# edit helm/smart-coffee/values.local.yaml with local passwords/image
+
+helm upgrade --install smart-coffee ./helm/smart-coffee \
+  -f helm/smart-coffee/values.local.yaml
+```
+
+For shared environments:
+
+```bash
+# example: pass secrets at deploy time
+helm upgrade --install smart-coffee ./helm/smart-coffee \
+  --set mysql.auth.rootPassword="$MYSQL_ROOT_PASSWORD" \
+  --set coffeeApi.database.password="$COFFEE_DB_PASSWORD"
+```
+
+For stronger secret management in shared environments, use SOPS or an external secrets solution.
 
 ## Optional: Combined port-forward (API + Grafana)
 

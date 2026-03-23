@@ -2,17 +2,27 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
+	"os"
+	"smart-coffee/config"
 	"smart-coffee/router"
 
 	_ "github.com/go-sql-driver/mysql"
 )
 
 func main() {
-	// Initialize MySQL connection
-	// DSN format: user:password@tcp(service-name:port)/dbname
-	// In Kubernetes, MySQL service is accessible via service name DNS
-	dsn := "root:coffee-password@tcp(mysql:3306)/coffee_db"
+	configPath := "config.yaml"
+	if value := os.Getenv("SMART_COFFEE_CONFIG"); value != "" {
+		configPath = value
+	}
+
+	cfg, err := config.Load(configPath)
+	if err != nil {
+		log.Fatalf("Failed to load config: %v", err)
+	}
+
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%d)/%s", cfg.Database.User, cfg.Database.Password, cfg.Database.Host, cfg.Database.Port, cfg.Database.Name)
 
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
@@ -25,18 +35,16 @@ func main() {
 		log.Fatalf("Failed to ping database: %v", err)
 	}
 
-	log.Println("Successfully connected to MySQL at mysql:3306")
+	log.Printf("Successfully connected to MySQL at %s:%d", cfg.Database.Host, cfg.Database.Port)
 
-	// Configure connection pool for observability
-	// These settings will be visible in Grafana via metrics
-	db.SetMaxOpenConns(25)  // Maximum number of open connections
-	db.SetMaxIdleConns(5)   // Maximum number of idle connections
-	db.SetConnMaxLifetime(0) // Connections are reused indefinitely
+	db.SetMaxOpenConns(cfg.Database.MaxOpenConns)
+	db.SetMaxIdleConns(cfg.Database.MaxIdleConns)
+	db.SetConnMaxLifetime(0)
 
 	r := router.New()
 
-	log.Println("Server starting on :8080")
-	if err := r.Run(":8080"); err != nil {
+	log.Printf("Server starting on :%s", cfg.Server.Port)
+	if err := r.Run(":" + cfg.Server.Port); err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}
 }

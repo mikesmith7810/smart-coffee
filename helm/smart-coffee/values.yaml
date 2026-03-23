@@ -1,0 +1,25 @@
+mysql:
+  enabled: true
+  image: mysql:8.0
+  service:
+    port: 3306
+  database: coffee_db
+  auth:
+    rootPassword: ""
+
+coffeeApi:
+  replicaCount: 1
+  image: smart-coffee:latest
+  imagePullPolicy: IfNotPresent
+  service:
+    port: 80
+  containerPort: 8080
+  serverPort: "8080"
+  database:
+    host: mysql
+    port: 3306
+    name: coffee_db
+    user: root
+    password: ""
+    maxOpenConns: 25
+    maxIdleConns: 5

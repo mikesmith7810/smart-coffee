@@ -5,21 +5,29 @@ metadata:
 data:
   config.yaml: |
     server:
-      port: "8080"
+      port: {{ .Values.coffeeApi.serverPort | quote }}
     database:
-      host: mysql
-      port: 3306
-      name: coffee_db
-      user: root
-      maxOpenConns: 25
-      maxIdleConns: 5
+      host: {{ .Values.coffeeApi.database.host }}
+      port: {{ .Values.coffeeApi.database.port }}
+      name: {{ .Values.coffeeApi.database.name }}
+      user: {{ .Values.coffeeApi.database.user }}
+      maxOpenConns: {{ .Values.coffeeApi.database.maxOpenConns }}
+      maxIdleConns: {{ .Values.coffeeApi.database.maxIdleConns }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: coffee-api-secret
+type: Opaque
+stringData:
+  MYSQL_PASSWORD: {{ required "coffeeApi.database.password is required" .Values.coffeeApi.database.password | quote }}
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: coffee-api
 spec:
-  replicas: 1
+  replicas: {{ .Values.coffeeApi.replicaCount }}
   selector:
     matchLabels:
       app: coffee-api
@@ -30,10 +38,10 @@ spec:
     spec:
       containers:
         - name: coffee-api
-          image: smart-coffee:latest
-          imagePullPolicy: IfNotPresent
+          image: {{ .Values.coffeeApi.image }}
+          imagePullPolicy: {{ .Values.coffeeApi.imagePullPolicy }}
           ports:
-            - containerPort: 8080
+            - containerPort: {{ .Values.coffeeApi.containerPort }}
           env:
             - name: SMART_COFFEE_CONFIG
               value: /app/config.yaml
@@ -61,5 +69,5 @@ spec:
     app: coffee-api
   ports:
     - name: http
-      port: 80
-      targetPort: 8080
+      port: {{ .Values.coffeeApi.service.port }}
+      targetPort: {{ .Values.coffeeApi.containerPort }}
