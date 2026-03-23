@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C /Users/mikesmith/code/personal/smart-coffee status:*)",
+      "Bash(git -C /Users/mikesmith/code/personal/smart-coffee diff)",
+      "Bash(git -C /Users/mikesmith/code/personal/smart-coffee log --oneline -5)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(gh pr create:*)"
+    ]
+  }
+}
