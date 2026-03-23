@@ -71,3 +71,20 @@ spec:
     - name: http
       port: {{ .Values.coffeeApi.service.port }}
       targetPort: {{ .Values.coffeeApi.containerPort }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: coffee-api
+spec:
+  rules:
+    - host: localhost
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: coffee-api
+                port:
+                  number: {{ .Values.coffeeApi.service.port }}
