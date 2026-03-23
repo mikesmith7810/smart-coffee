@@ -1,0 +1,8 @@
+mysql:
+  auth:
+    rootPassword: <your-root-password>
+
+coffeeApi:
+  image: smart-coffee:latest
+  database:
+    password: <your-db-password>

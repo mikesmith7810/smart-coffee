@@ -1,0 +1,90 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coffee-api-config
+data:
+  config.yaml: |
+    server:
+      port: {{ .Values.coffeeApi.serverPort | quote }}
+    database:
+      host: {{ .Values.coffeeApi.database.host }}
+      port: {{ .Values.coffeeApi.database.port }}
+      name: {{ .Values.coffeeApi.database.name }}
+      user: {{ .Values.coffeeApi.database.user }}
+      maxOpenConns: {{ .Values.coffeeApi.database.maxOpenConns }}
+      maxIdleConns: {{ .Values.coffeeApi.database.maxIdleConns }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: coffee-api-secret
+type: Opaque
+stringData:
+  MYSQL_PASSWORD: {{ required "coffeeApi.database.password is required" .Values.coffeeApi.database.password | quote }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coffee-api
+spec:
+  replicas: {{ .Values.coffeeApi.replicaCount }}
+  selector:
+    matchLabels:
+      app: coffee-api
+  template:
+    metadata:
+      labels:
+        app: coffee-api
+    spec:
+      containers:
+        - name: coffee-api
+          image: {{ .Values.coffeeApi.image }}
+          imagePullPolicy: {{ .Values.coffeeApi.imagePullPolicy }}
+          ports:
+            - containerPort: {{ .Values.coffeeApi.containerPort }}
+          env:
+            - name: SMART_COFFEE_CONFIG
+              value: /app/config.yaml
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: coffee-api-secret
+                  key: MYSQL_PASSWORD
+          volumeMounts:
+            - name: app-config
+              mountPath: /app/config.yaml
+              subPath: config.yaml
+      volumes:
+        - name: app-config
+          configMap:
+            name: coffee-api-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: coffee-api
+spec:
+  type: ClusterIP
+  selector:
+    app: coffee-api
+  ports:
+    - name: http
+      port: {{ .Values.coffeeApi.service.port }}
+      targetPort: {{ .Values.coffeeApi.containerPort }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: coffee-api
+spec:
+  rules:
+    - host: localhost
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: coffee-api
+                port:
+                  number: {{ .Values.coffeeApi.service.port }}

@@ -85,7 +85,9 @@ smart-coffee/app/
 ## Database Patterns
 
 - Use `database/sql` with `github.com/go-sql-driver/mysql` for MySQL connectivity
-- Connection strings must work both locally (Docker `localhost:3306`) and in Kubernetes (service DNS `mysql:3306`)
+- Load non-secret database settings from a config file and allow environment variables to override them
+- Keep passwords and other secrets out of source code and out of committed config files
+- In Kubernetes, prefer `ConfigMap` for non-secret config and `Secret` for passwords/tokens
 - Always call `db.Ping()` after opening to verify connectivity
 - Configure connection pool limits (`SetMaxOpenConns`, `SetMaxIdleConns`) for production readiness
 - Close database connections gracefully with `defer db.Close()` in main
