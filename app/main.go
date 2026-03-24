@@ -6,7 +6,10 @@ import (
 	"log"
 	"os"
 	"smart-coffee/config"
+	"smart-coffee/handlers"
+	"smart-coffee/repository"
 	"smart-coffee/router"
+	"smart-coffee/service"
 
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -30,7 +33,6 @@ func main() {
 	}
 	defer db.Close()
 
-	// Verify connection is working
 	if err = db.Ping(); err != nil {
 		log.Fatalf("Failed to ping database: %v", err)
 	}
@@ -41,10 +43,28 @@ func main() {
 	db.SetMaxIdleConns(cfg.Database.MaxIdleConns)
 	db.SetConnMaxLifetime(0)
 
-	r := router.New()
+	if err := initSchema(db); err != nil {
+		log.Fatalf("Failed to initialise schema: %v", err)
+	}
+
+	repo := repository.NewCoffeeRepository(db)
+	svc := service.NewCoffeeService(repo)
+	h := handlers.NewHandler(svc)
+	r := router.New(h)
 
 	log.Printf("Server starting on :%s", cfg.Server.Port)
 	if err := r.Run(":" + cfg.Server.Port); err != nil {
 		log.Fatalf("Server failed to start: %v", err)
 	}
+}
+
+func initSchema(db *sql.DB) error {
+	_, err := db.Exec(`
+		CREATE TABLE IF NOT EXISTS coffees (
+			id       VARCHAR(255) PRIMARY KEY,
+			name     VARCHAR(255) NOT NULL,
+			calories INT         NOT NULL
+		)
+	`)
+	return err
 }
