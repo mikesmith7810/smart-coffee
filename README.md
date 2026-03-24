@@ -51,10 +51,23 @@ helm upgrade --install smart-coffee ./helm/smart-coffee \
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo update
 helm upgrade --install obs prometheus-community/kube-prometheus-stack \
-  -n monitoring --create-namespace
+  -n monitoring --create-namespace \
+  -f helm/obs-values.yaml
 ```
 
-### 6) Verify
+### 6) Deploy Loki (log aggregation)
+
+Loki collects logs from all pods. Promtail runs as a DaemonSet and ships logs to Loki. Grafana is pre-configured to use Loki as a data source via `helm/obs-values.yaml`.
+
+```bash
+helm repo add grafana https://grafana.github.io/helm-charts
+helm repo update
+helm upgrade --install loki grafana/loki-stack \
+  -n monitoring \
+  -f helm/loki-values.yaml
+```
+
+### 7) Verify
 
 ```bash
 kubectl get pods
@@ -63,7 +76,7 @@ curl "http://localhost:8080/coffee/?id=123"
 curl "http://localhost:8080/metrics"
 ```
 
-### 7) Port-forward Grafana
+### 8) Port-forward Grafana
 
 ```bash
 kubectl port-forward svc/obs-grafana -n monitoring 3000:80
@@ -71,7 +84,7 @@ kubectl port-forward svc/obs-grafana -n monitoring 3000:80
 
 Grafana is available at `http://localhost:3000`.
 
-### 8) Log in to Grafana
+### 9) Log in to Grafana
 
 Get the generated admin password:
 
@@ -82,6 +95,16 @@ kubectl get secret obs-grafana -n monitoring -o jsonpath="{.data.admin-password}
 Log in with:
 - **Username:** `admin`
 - **Password:** output from the command above
+
+## Viewing logs in Grafana
+
+1. Open Grafana at `http://localhost:3000`
+2. Go to **Explore** (compass icon in the left sidebar)
+3. Select **Loki** from the data source dropdown
+4. Use the label filters to find your pods, e.g.:
+   - `app = coffee-api` for the API logs
+   - `app = mysql` for the database logs
+5. Hit **Run query**
 
 ## Shared environments
 
