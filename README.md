@@ -118,6 +118,31 @@ helm upgrade --install smart-coffee ./helm/smart-coffee \
 
 For stronger secret management, use SOPS or an external secrets solution.
 
-## TODO
+## Load Tests (k6)
 
-- [ ] Add k6 load tests
+Tests are in `tests/load/`. Each profile does a PUT then GET for `/coffee/`, incrementing the ID each iteration.
+
+Install k6:
+```bash
+brew install k6
+```
+
+**Smoke** — 1 user, 10 iterations, quick sanity check:
+```bash
+k6 run tests/load/smoke.js
+```
+
+**Load** — ramp up to 10 users over 4 minutes:
+```bash
+k6 run tests/load/load.js
+```
+
+**Stress** — spike to 50 users to find breaking point:
+```bash
+k6 run tests/load/stress.js
+```
+
+To run against a different host:
+```bash
+k6 run -e BASE_URL=http://my-other-host:8080 tests/load/load.js
+```
