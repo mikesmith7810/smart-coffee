@@ -9,10 +9,12 @@ import (
 )
 
 func New() *gin.Engine {
-	r := gin.Default()
+	r := gin.New()
+	r.Use(gin.Recovery())
 	r.Use(metrics.Middleware())
 
 	r.GET("/coffee/", handlers.GetCoffee)
+	r.PUT("/coffee/", handlers.PutCoffee)
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	return r
